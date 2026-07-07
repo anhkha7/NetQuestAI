@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import apiClient from '../api/client'
 import { useAuthStore } from '../store/authStore'
 import type { AuthResponse } from '../types'
+import logo from '../assets/logo.png'
 
 const passwordStrength = (pw: string) => {
   if (pw.length === 0) return null
@@ -54,12 +55,9 @@ export default function RegisterPage() {
       <div className="w-full max-w-md animate-fade-in-up">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center bg-gradient-to-br from-[var(--color-neon-cyan)] to-[var(--color-neon-purple)]">
-            <span className="text-2xl font-black text-[var(--color-bg-primary)]">NQ</span>
+          <div className="flex justify-center mb-4">
+            <img src={logo} alt="NetQuest AI" className="h-16 w-auto object-contain" />
           </div>
-          <h1 className="text-3xl font-bold mb-2">
-            Join <span className="gradient-text-cyan-purple">NetQuest AI</span>
-          </h1>
           <p className="text-[var(--color-text-muted)]">Create your operator account</p>
         </div>
 

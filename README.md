@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="frontend/src/assets/logo.png" alt="NetQuest AI Logo" width="480" />
+</div>
+
 # NetQuest AI 🌐🤖
 
 > **Hệ thống học mạng máy tính và thi đấu CTF (Capture The Flag) tích hợp trí tuệ nhân tạo.**

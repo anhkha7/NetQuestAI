@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import logo from '../assets/logo.png'
 
 export default function Navbar() {
   const { isAuthenticated, user, logout } = useAuthStore()
@@ -14,13 +15,12 @@ export default function Navbar() {
     <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-[var(--color-border)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-3 group">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br from-[var(--color-neon-green)] to-[var(--color-neon-cyan)]">
-            <span className="text-[var(--color-bg-primary)] font-bold text-sm">NQ</span>
-          </div>
-          <span className="font-bold text-lg tracking-tight group-hover:text-[var(--color-neon-cyan)] transition-colors duration-300">
-            Net<span className="gradient-text-green-cyan">Quest</span> AI
-          </span>
+        <Link to="/" className="flex items-center gap-2 group">
+          <img
+            src={logo}
+            alt="NetQuest AI"
+            className="h-9 w-auto object-contain transition-opacity duration-300 group-hover:opacity-80"
+          />
         </Link>
 
         {/* Nav links */}

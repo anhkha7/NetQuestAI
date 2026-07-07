@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import logo from '../assets/logo.png'
 
 const features = [
   {
@@ -46,11 +47,14 @@ export default function LandingPage() {
             <span className="text-sm text-[var(--color-neon-green)] font-mono">Live CTF Platform</span>
           </div>
 
-          {/* Headline */}
-          <h1 className="text-5xl sm:text-7xl font-extrabold tracking-tight mb-6 animate-fade-in-up-delay-1">
-            <span className="gradient-text-green-cyan">NetQuest</span>
-            <span className="text-[var(--color-text-primary)]"> AI</span>
-          </h1>
+          {/* Logo */}
+          <div className="flex justify-center mb-6 animate-fade-in-up-delay-1">
+            <img
+              src={logo}
+              alt="NetQuest AI — AI-Powered Network Learning & CTF Platform"
+              className="h-28 sm:h-36 w-auto object-contain drop-shadow-[0_0_30px_rgba(0,212,255,0.3)] animate-float"
+            />
+          </div>
 
           <p className="text-xl sm:text-2xl text-[var(--color-text-muted)] max-w-2xl mx-auto mb-10 leading-relaxed animate-fade-in-up-delay-2">
             Master network engineering through AI-guided CTF challenges.
