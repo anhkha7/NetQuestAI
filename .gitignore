@@ -1,0 +1,28 @@
+# ── .NET / Backend ────────────────────────────────
+backend/src/**/bin/
+backend/src/**/obj/
+backend/src/**/*.db
+backend/src/**/*.db-wal
+backend/src/**/*.db-shm
+*.user
+.vs/
+
+# ── Node / Frontend ────────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# ── Environment / Secrets ─────────────────────────
+.env
+.env.local
+.env.*.local
+appsettings.Production.json
+
+# ── OS ────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── IDE ───────────────────────────────────────────
+.idea/
+*.suo
+*.sln.docstates
