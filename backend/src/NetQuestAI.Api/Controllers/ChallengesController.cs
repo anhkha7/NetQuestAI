@@ -103,6 +103,53 @@ public class ChallengesController(AppDbContext db, ILogger<ChallengesController>
         return CreatedAtAction(nameof(GetById), new { id = challenge.Id }, dto);
     }
 
+    /// <summary>Admin only — update an existing challenge.</summary>
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateChallengeRequest request, CancellationToken ct)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var challenge = await db.Challenges.FindAsync([id], ct);
+        if (challenge is null)
+            return NotFound(new { message = $"Challenge {id} not found." });
+
+        challenge.Title = request.Title;
+        challenge.Description = request.Description;
+        challenge.Difficulty = Enum.Parse<Difficulty>(request.Difficulty, ignoreCase: true);
+        challenge.InitialConfig = request.InitialConfig;
+        challenge.TargetRequirements = request.TargetRequirements;
+        challenge.Points = request.Points;
+        challenge.IsActive = request.IsActive;
+
+        if (!string.IsNullOrWhiteSpace(request.Flag))
+        {
+            challenge.FlagHash = ComputeSha256(request.Flag);
+        }
+
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    /// <summary>Admin only — delete a challenge.</summary>
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        var challenge = await db.Challenges.FindAsync([id], ct);
+        if (challenge is null)
+            return NotFound(new { message = $"Challenge {id} not found." });
+
+        db.Challenges.Remove(challenge);
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     private static string ComputeSha256(string input)
     {
         var bytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(input));
@@ -119,4 +166,15 @@ public record CreateChallengeRequest(
     int Points = 100,
     string InitialConfig = "{}",
     string TargetRequirements = "{}"
+);
+
+public record UpdateChallengeRequest(
+    [System.ComponentModel.DataAnnotations.Required] string Title,
+    [System.ComponentModel.DataAnnotations.Required] string Description,
+    [System.ComponentModel.DataAnnotations.Required] string Difficulty,
+    string? Flag,
+    int Points = 100,
+    string InitialConfig = "{}",
+    string TargetRequirements = "{}",
+    bool IsActive = true
 );

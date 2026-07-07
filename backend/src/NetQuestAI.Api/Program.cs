@@ -6,6 +6,8 @@ using Microsoft.OpenApi.Models;
 using NetQuestAI.Api.Data;
 using NetQuestAI.Api.Services;
 
+using NetQuestAI.Api.Hubs;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Database ────────────────────────────────────────────────────────────────
@@ -36,9 +38,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+// ── SignalR & HTTP Client ────────────────────────────────────────────────────
+builder.Services.AddSignalR();
+builder.Services.AddHttpClient();
+
 // ── Application Services ────────────────────────────────────────────────────
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IGeminiService, GeminiService>();
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
 builder.Services.AddCors(options =>
@@ -107,5 +114,6 @@ app.UseCors("ViteDev");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();

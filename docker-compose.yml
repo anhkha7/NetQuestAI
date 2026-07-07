@@ -1,0 +1,40 @@
+services:
+  database-sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: netquest-db
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=SecurePassword123!
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+
+  backend-api:
+    image: netquest-backend:latest
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: netquest-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=database-sql;Database=NetQuestAI_Prod;User Id=sa;Password=SecurePassword123!;TrustServerCertificate=True
+      - Gemini__ApiKey=YOUR_GEMINI_API_KEY
+    ports:
+      - "5000:8080"
+    depends_on:
+      - database-sql
+
+  frontend-client:
+    image: netquest-frontend:latest
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: netquest-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend-api
+
+volumes:
+  mssql-data:

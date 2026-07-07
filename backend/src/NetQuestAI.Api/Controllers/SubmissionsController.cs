@@ -6,12 +6,20 @@ using NetQuestAI.Api.Data;
 using NetQuestAI.Api.DTOs.Submission;
 using NetQuestAI.Api.Models;
 
+using Microsoft.AspNetCore.SignalR;
+using NetQuestAI.Api.Hubs;
+using NetQuestAI.Api.Services;
+
 namespace NetQuestAI.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class SubmissionsController(AppDbContext db, ILogger<SubmissionsController> logger) : ControllerBase
+public class SubmissionsController(
+    AppDbContext db, 
+    ILogger<SubmissionsController> logger,
+    IGeminiService geminiService,
+    IHubContext<NotificationHub> hubContext) : ControllerBase
 {
     /// <summary>Submit a flag for a challenge. Returns pass/fail and score.</summary>
     [HttpPost]
@@ -38,6 +46,14 @@ public class SubmissionsController(AppDbContext db, ILogger<SubmissionsControlle
         var isPassed = string.Equals(submittedHash, challenge.FlagHash, StringComparison.OrdinalIgnoreCase);
         var score = isPassed ? challenge.Points : 0;
 
+        // Call Gemini Service dynamically to evaluate configuration
+        var aiFeedback = await geminiService.GetFeedbackAsync(
+            challenge.Title,
+            challenge.InitialConfig,
+            challenge.TargetRequirements,
+            request.SubmittedConfig,
+            ct);
+
         var submission = new Submission
         {
             Id = Guid.NewGuid(),
@@ -46,11 +62,13 @@ public class SubmissionsController(AppDbContext db, ILogger<SubmissionsControlle
             SubmittedConfig = request.SubmittedConfig,
             Score = score,
             IsPassed = isPassed,
-            AIFeedback = null, // Populated by AI service in a future phase
+            AIFeedback = aiFeedback,
             SubmittedAt = DateTime.UtcNow
         };
 
         db.Submissions.Add(submission);
+
+        string username = "Unknown Operator";
 
         // Update user total points if passed and not previously solved
         if (isPassed)
@@ -58,10 +76,11 @@ public class SubmissionsController(AppDbContext db, ILogger<SubmissionsControlle
             var alreadySolved = await db.Submissions.AnyAsync(
                 s => s.UserId == userId && s.ChallengeId == request.ChallengeId && s.IsPassed, ct);
 
-            if (!alreadySolved)
+            var user = await db.Users.FindAsync([userId], ct);
+            if (user is not null)
             {
-                var user = await db.Users.FindAsync([userId], ct);
-                if (user is not null)
+                username = user.Username;
+                if (!alreadySolved)
                 {
                     user.TotalPoints += score;
                     logger.LogInformation("User {UserId} solved challenge {ChallengeId} for {Points} pts",
@@ -69,8 +88,32 @@ public class SubmissionsController(AppDbContext db, ILogger<SubmissionsControlle
                 }
             }
         }
+        else
+        {
+            var user = await db.Users.FindAsync([userId], ct);
+            if (user is not null)
+            {
+                username = user.Username;
+            }
+        }
 
         await db.SaveChangesAsync(ct);
+
+        // Broadcast real-time CTF update if passed
+        if (isPassed)
+        {
+            try
+            {
+                await hubContext.Clients.All.SendAsync("ReceiveNotification", 
+                    username, 
+                    $"solved the challenge **{challenge.Title}** successfully! (+{score} pts)", 
+                    ct);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to broadcast SignalR event.");
+            }
+        }
 
         return Ok(new SubmissionResultDto(submission.Id, submission.IsPassed, submission.Score,
             submission.AIFeedback, submission.SubmittedAt));

@@ -24,7 +24,7 @@ export default function Navbar() {
         </Link>
 
         {/* Nav links */}
-        <div className="hidden md:flex items-center gap-6 text-sm text-[var(--color-text-muted)]">
+        <div className="hidden md:flex items-center gap-6 text-sm text-[var(--color-text-muted)] font-mono">
           {isAuthenticated && (
             <>
               <Link to="/dashboard" className="hover:text-[var(--color-neon-cyan)] transition-colors duration-200">
@@ -33,6 +33,14 @@ export default function Navbar() {
               <Link to="/challenges" className="hover:text-[var(--color-neon-cyan)] transition-colors duration-200">
                 Challenges
               </Link>
+              <Link to="/leaderboard" className="hover:text-[var(--color-neon-cyan)] transition-colors duration-200">
+                Leaderboard
+              </Link>
+              {user?.role === 'Admin' && (
+                <Link to="/admin" className="hover:text-[var(--color-neon-purple)] text-[var(--color-neon-purple)]/80 transition-colors duration-200 font-bold">
+                  Admin
+                </Link>
+              )}
             </>
           )}
         </div>
