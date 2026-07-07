@@ -12,13 +12,14 @@
 ## 📋 Mục lục
 
 - [Giới thiệu](#giới-thiệu)
+- [Tính năng nổi bật (Giai đoạn 2)](#tính-năng-nổi-bật-giai-đoạn-2)
 - [Tech Stack](#tech-stack)
 - [Cấu trúc dự án](#cấu-trúc-dự-án)
 - [Database — Lưu ở đâu?](#database--lưu-ở-đâu)
-- [Cài đặt & Chạy](#cài-đặt--chạy)
+- [Cài đặt & Chạy dưới local](#cài-đặt--chạy-dưới-local)
+- [Chạy với Docker Compose](#chạy-với-docker-compose)
 - [API Endpoints](#api-endpoints)
-- [Biến môi trường & Cấu hình](#biến-môi-trường--cấu-hình)
-- [Roadmap](#roadmap)
+- [Bảo mật](#bảo-mật)
 
 ---
 
@@ -26,12 +27,16 @@
 
 **NetQuest AI** là nền tảng học và thi đấu bảo mật mạng kết hợp AI. Người dùng giải các thử thách CTF về cấu hình router, firewall, VLAN, BGP, IDS/IPS… và nhận phản hồi thông minh từ mô hình AI sau mỗi lần nộp bài.
 
-**Tính năng chính:**
-- 🏆 Hệ thống thử thách CTF phân cấp độ (Easy / Medium / Hard)
-- 🤖 Phản hồi AI sau mỗi lần nộp flag (sẽ tích hợp giai đoạn 2)
-- 🔐 Xác thực JWT + mã hóa mật khẩu bcrypt
-- 📊 Bảng điểm & lịch sử nộp bài cá nhân
-- 🚩 Flag được lưu dưới dạng SHA-256 hash — không bao giờ lộ plaintext
+---
+
+## Tính năng nổi bật (Giai đoạn 2)
+
+Hệ thống đã được phát triển hoàn tất các tính năng cốt lõi:
+- 🤖 **AI Feedback (Google Gemini API):** Tự động phân tích, đánh giá cấu trúc subnet, định tuyến và đưa ra đề xuất tối ưu hóa bảo mật cho cấu hình mạng của học viên. Tích hợp sẵn *Mock Mode* khi chưa có Key.
+- 🎨 **Sơ đồ mạng tương tác (Topology Visualizer):** Render sơ đồ mạng trực tiếp trên UI sử dụng SVG động, kết nối trực quan giữa Router, Firewall, Switch, Server và PC. Xem chi tiết IP/Status khi click vào thiết bị.
+- ⚡ **WebSocket Real-time Leaderboard (SignalR):** Bảng xếp hạng trực tuyến cập nhật điểm và hiển thị thông báo thời gian thực ngay khi có học viên giải thành công thử thách.
+- 🛠️ **Admin Control Panel (CRUD):** Trang quản trị dành riêng cho Admin để thêm, sửa, xóa các thử thách CTF, cấu hình điểm số và sơ đồ topology bằng JSON.
+- 🐳 **Dockerization:** Sẵn sàng triển khai với Dockerfile cho Backend/Frontend và `docker-compose.yml` tích hợp sẵn SQL Server.
 
 ---
 
@@ -41,12 +46,13 @@
 |-------|-----------|
 | **Backend** | ASP.NET Core 10 Web API, Entity Framework Core 9 |
 | **Frontend** | React 19, Vite 8, Tailwind CSS v4 |
-| **Database** | SQLite *(dev)* · SQL Server *(production)* |
+| **Database** | SQL Server (mặc định cho Dev/Prod) |
+| **Real-time** | ASP.NET Core SignalR (WebSockets) |
 | **Auth** | JWT Bearer (HS256), BCrypt.Net |
 | **State Management** | Zustand + localStorage |
 | **HTTP Client** | Axios |
-| **Routing** | React Router v7 |
 | **API Docs** | Swagger / OpenAPI (Swashbuckle) |
+| **Containerization** | Docker, Docker Compose, Nginx |
 
 ---
 
@@ -55,327 +61,145 @@
 ```
 NetQuestAI/
 ├── global.json                          # Ghim .NET SDK 10.0.201
+├── docker-compose.yml                   # Khởi chạy SQL Server, API, Frontend
 ├── .gitignore
+├── .gitattributes
 ├── README.md
 │
 ├── backend/
+│   ├── Dockerfile
 │   ├── NetQuestAI.sln
 │   └── src/
 │       └── NetQuestAI.Api/
-│           ├── NetQuestAI.Api.csproj
-│           ├── Program.cs               # DI, JWT, CORS, Swagger, auto-migrate
-│           ├── appsettings.json
-│           ├── appsettings.Development.json
+│           ├── Program.cs               # DI, JWT, CORS, SignalR Hub, Swagger, auto-migrate
 │           ├── Controllers/
-│           │   ├── AuthController.cs        # POST /api/auth/register|login
-│           │   ├── ChallengesController.cs  # GET|POST /api/challenges
-│           │   └── SubmissionsController.cs # POST /api/submissions
-│           ├── Data/
-│           │   ├── AppDbContext.cs
-│           │   └── Configurations/
-│           │       ├── UserConfiguration.cs
-│           │       ├── ChallengeConfiguration.cs
-│           │       └── SubmissionConfiguration.cs
-│           ├── Models/
-│           │   ├── User.cs          # Id, Username, Email, PasswordHash, Role, TotalPoints
-│           │   ├── Challenge.cs     # Id, Title, Description, Difficulty, Points, FlagHash
-│           │   └── Submission.cs    # Id, UserId, ChallengeId, Score, AIFeedback, IsPassed
-│           ├── DTOs/
-│           │   ├── Auth/            # RegisterRequest, LoginRequest, AuthResponse
-│           │   ├── Challenge/       # ChallengeDto, ChallengeSummaryDto
-│           │   └── Submission/      # SubmitFlagRequest, SubmissionDto
+│           │   ├── AuthController.cs        # Đăng ký/Đăng nhập
+│           │   ├── ChallengesController.cs  # CRUD Challenges (Admin)
+│           │   ├── SubmissionsController.cs # Nộp flag + AI feedback
+│           │   └── LeaderboardController.cs # Điểm số bảng xếp hạng
+│           ├── Hubs/
+│           │   └── NotificationHub.cs       # WebSocket broadcast thời gian thực
 │           ├── Services/
-│           │   ├── TokenService.cs  # Tạo JWT
-│           │   └── AuthService.cs   # Đăng ký / đăng nhập
-│           └── Migrations/          # EF Core migrations (auto-generated)
+│           │   ├── TokenService.cs          # Tạo JWT
+│           │   ├── AuthService.cs           # Đăng ký & Xác thực
+│           │   └── GeminiService.cs         # Gọi Gemini API / Phản hồi AI
+│           └── Migrations/              # SQL Server EF Core migrations
 │
 └── frontend/
-    ├── index.html
-    ├── vite.config.ts
-    ├── package.json
+    ├── Dockerfile
+    ├── nginx.conf                       # Cấu hình Web Server + Proxy API/WebSockets
+    ├── index.html                       # Favicon (logo) + SEO
     └── src/
-        ├── main.tsx
-        ├── App.tsx                  # Router + routes
-        ├── index.css                # Design system (cyberpunk dark theme)
-        ├── api/
-        │   └── client.ts            # Axios + JWT interceptor
-        ├── store/
-        │   └── authStore.ts         # Zustand auth state
-        ├── types/
-        │   └── index.ts             # TypeScript types (mirror DTOs)
+        ├── App.tsx                      # Quản lý route công khai & bảo mật
+        ├── index.css                    # Design system (cyberpunk dark theme)
         ├── components/
-        │   ├── Navbar.tsx
-        │   └── ProtectedRoute.tsx
+        │   ├── Navbar.tsx               # Thanh điều hướng tự động nhận diện role Admin
+        │   ├── ProtectedRoute.tsx       # Bảo vệ route bằng JWT
+        │   └── TopologyVisualizer.tsx   # Render sơ đồ SVG tương tác
         └── pages/
-            ├── LandingPage.tsx
+            ├── LandingPage.tsx          # Giới thiệu & Terminal mô phỏng
             ├── LoginPage.tsx
             ├── RegisterPage.tsx
-            └── DashboardPage.tsx
+            ├── DashboardPage.tsx        # Dashboard thống kê cá nhân
+            ├── ChallengesPage.tsx       # Danh sách thử thách
+            ├── ChallengeDetailsPage.tsx # Giao diện làm bài + Visualizer + AI feedback
+            ├── LeaderboardPage.tsx      # Bảng xếp hạng trực tiếp
+            └── AdminPage.tsx            # CRUD thử thách (Admin)
 ```
 
 ---
 
 ## Database — Lưu ở đâu?
 
-> **📌 Câu trả lời ngắn:** Database hiện tại là **SQLite**, file được lưu ngay trong thư mục project của backend.
+Database mặc định hiện tại là **Microsoft SQL Server**.
 
-### Vị trí file SQLite hiện tại
-
-Khi chạy `dotnet run` với môi trường `Development` (mặc định), file database nằm tại:
-
+### Connection String (Development dưới local)
+Trong `backend/src/NetQuestAI.Api/appsettings.Development.json`:
+```json
+"ConnectionStrings": {
+  "DefaultConnection": "Server=.;Database=NetQuestAI_Dev;Integrated Security=True;TrustServerCertificate=True"
+}
 ```
-e:\Do an\NetQuestAI\backend\src\NetQuestAI.Api\netquestai-dev.db
-```
-
-| File | Mô tả |
-|------|-------|
-| `netquestai-dev.db` | File database chính (SQLite) |
-| `netquestai-dev.db-wal` | Write-Ahead Log — dùng cho ghi đồng thời |
-| `netquestai-dev.db-shm` | Shared memory file |
-
-Connection string được định nghĩa trong:
-- **Development:** `appsettings.Development.json` → `Data Source=netquestai-dev.db`
-- **Production:** `appsettings.json` → `Data Source=netquestai.db`
+*(Nếu bạn dùng LocalDB hoặc phiên bản SQL Express, hãy thay đổi cấu hình `Server` cho phù hợp, ví dụ: `Server=(localdb)\\mssqllocaldb`)*
 
 ---
 
-### 🔄 Chuyển sang SQL Server (máy bạn đang dùng)
-
-Vì máy bạn đã có **SQL Server**, làm theo 3 bước sau:
-
-#### Bước 1 — Thay NuGet package
-
-Mở file `backend/src/NetQuestAI.Api/NetQuestAI.Api.csproj`, thay `Sqlite` bằng `SqlServer`:
-
-```xml
-<!-- XÓA dòng này -->
-<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.*" />
-
-<!-- THÊM dòng này -->
-<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.*" />
-```
-
-Sau đó chạy:
-```powershell
-dotnet restore backend/src/NetQuestAI.Api/NetQuestAI.Api.csproj
-```
-
-#### Bước 2 — Cập nhật connection string
-
-Sửa `appsettings.Development.json`:
-```json
-"ConnectionStrings": {
-  "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=NetQuestAI_Dev;Trusted_Connection=True;TrustServerCertificate=True"
-}
-```
-
-Hoặc nếu dùng SQL Server cục bộ đầy đủ:
-```json
-"ConnectionStrings": {
-  "DefaultConnection": "Server=localhost;Database=NetQuestAI_Dev;Integrated Security=True;TrustServerCertificate=True"
-}
-```
-
-#### Bước 3 — Sửa `Program.cs`
-
-Mở `Program.cs`, thay `UseSqlite` bằng `UseSqlServer`:
-
-```csharp
-// Thay dòng này:
-options.UseSqlite(...)
-
-// Thành:
-options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
-```
-
-#### Bước 4 — Tạo lại migration & apply
-
-```powershell
-# Xóa migration cũ (nếu muốn tạo lại sạch)
-dotnet ef migrations remove --project backend/src/NetQuestAI.Api/NetQuestAI.Api.csproj
-
-# Tạo migration mới
-dotnet ef migrations add InitialCreate --project backend/src/NetQuestAI.Api/NetQuestAI.Api.csproj --output-dir Migrations
-
-# Apply vào SQL Server
-dotnet ef database update --project backend/src/NetQuestAI.Api/NetQuestAI.Api.csproj
-```
-
----
-
-## Cài đặt & Chạy
+## Cài đặt & Chạy dưới local
 
 ### Yêu cầu hệ thống
+- **.NET SDK:** 10.0.x
+- **Node.js:** 18+ & **npm:** 9+
+- **SQL Server:** Đã chạy service và bật chế độ xác thực Windows (Integrated Security).
 
-| Công cụ | Phiên bản tối thiểu |
-|---------|---------------------|
-| .NET SDK | 10.0.x |
-| Node.js | 18+ |
-| npm | 9+ |
-| SQL Server / SQLite | Tùy chọn (xem bên trên) |
+### Khởi chạy Backend
 
-### Clone & Cài đặt
+1. Di chuyển vào thư mục backend:
+   ```powershell
+   cd backend/src/NetQuestAI.Api
+   ```
+2. Thực hiện restore và chạy server (Database sẽ tự động migrate và tạo các bảng trong SQL Server khi khởi động lần đầu):
+   ```powershell
+   dotnet run --urls http://localhost:5000
+   ```
+   > 🟢 API: **http://localhost:5000** | Swagger: **http://localhost:5000/swagger**
 
-```powershell
-git clone <repo-url>
-cd NetQuestAI
-```
+### Khởi chạy Frontend
 
-### Chạy Backend
+1. Di chuyển vào thư mục frontend:
+   ```powershell
+   cd frontend
+   ```
+2. Cài đặt các thư viện:
+   ```powershell
+   npm install
+   ```
+3. Chạy dev server:
+   ```powershell
+   npm run dev
+   ```
+   > 🟢 Frontend: **http://localhost:5173**
 
-```powershell
-cd backend/src/NetQuestAI.Api
+---
 
-# Restore packages
-dotnet restore
+## Chạy với Docker Compose
 
-# Chạy server (tự động migrate database khi khởi động)
-dotnet run --urls http://localhost:5000
-```
+Nếu bạn muốn chạy toàn bộ hệ thống (Frontend + Backend + SQL Server) trong môi trường container hóa (không cần cài đặt gì thêm ngoài Docker Desktop):
 
-> 🟢 Backend chạy tại: **http://localhost:5000**
-> 📖 Swagger UI tại: **http://localhost:5000/swagger**
-
-### Chạy Frontend
-
-```powershell
-cd frontend
-
-# Cài packages lần đầu
-npm install
-
-# Chạy dev server
-npm run dev
-```
-
-> 🟢 Frontend chạy tại: **http://localhost:5173**
-
-### Build Production (Frontend)
-
-```powershell
-npm run build --prefix frontend
-```
+1. Khởi chạy Docker Compose tại thư mục root của dự án:
+   ```bash
+   docker-compose up --build -d
+   ```
+2. Các dịch vụ sẽ tự động được khởi chạy trên các cổng sau:
+   - **Frontend Web Client:** http://localhost (Cổng 80)
+   - **Backend API:** http://localhost:5000
+   - **SQL Server Database:** localhost,1433
 
 ---
 
 ## API Endpoints
 
-> **Base URL:** `http://localhost:5000/api`
-> Các endpoint có 🔒 yêu cầu header: `Authorization: Bearer <token>`
-
 ### Auth
+- `POST /api/auth/register` — Đăng ký tài khoản.
+- `POST /api/auth/login` — Đăng nhập nhận JWT.
 
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| `POST` | `/auth/register` | Đăng ký tài khoản mới |
-| `POST` | `/auth/login` | Đăng nhập, nhận JWT token |
+### Challenges (🔒 Yêu cầu Bearer Token)
+- `GET /api/challenges` — Danh sách thử thách (phân trang + lọc theo độ khó).
+- `GET /api/challenges/{id}` — Chi tiết thử thách (bao gồm JSON topology).
+- `POST /api/challenges` — Tạo thử thách mới *(Admin only)*.
+- `PUT /api/challenges/{id}` — Cập nhật thử thách *(Admin only)*.
+- `DELETE /api/challenges/{id}` — Xóa thử thách *(Admin only)*.
 
-**Register body:**
-```json
-{
-  "username": "operator_one",
-  "email": "you@example.com",
-  "password": "Str0ng@Pass!"
-}
-```
+### Submissions (🔒 Yêu cầu Bearer Token)
+- `POST /api/submissions` — Nộp flag + cấu hình để so khớp và sinh phản hồi AI.
+- `GET /api/submissions/my` — Lịch sử nộp bài của cá nhân.
 
-**Login body:**
-```json
-{
-  "usernameOrEmail": "operator_one",
-  "password": "Str0ng@Pass!"
-}
-```
-
-### Challenges 🔒
-
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| `GET` | `/challenges` | Danh sách thử thách (phân trang) |
-| `GET` | `/challenges/{id}` | Chi tiết một thử thách |
-| `POST` | `/challenges` | Tạo thử thách mới *(Admin only)* |
-
-**Query params (GET /challenges):** `?difficulty=Easy&page=1&pageSize=20`
-
-### Submissions 🔒
-
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| `POST` | `/submissions` | Nộp flag cho thử thách |
-| `GET` | `/submissions/my` | Xem lịch sử nộp bài của bản thân |
-
-**Submit flag body:**
-```json
-{
-  "challengeId": "guid-of-challenge",
-  "flag": "NQ{your_flag_here}",
-  "submittedConfig": "{}"
-}
-```
-
----
-
-## Biến môi trường & Cấu hình
-
-### `appsettings.Development.json`
-
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Data Source=netquestai-dev.db"
-  },
-  "JwtSettings": {
-    "SecretKey": "Dev-Only-Secret-Key-Min-32-Chars-For-HS256-Safety!",
-    "Issuer": "NetQuestAI-Dev",
-    "Audience": "NetQuestAI-Client",
-    "ExpiryDays": "7"
-  }
-}
-```
-
-> ⚠️ **Lưu ý bảo mật:** Thay `SecretKey` bằng chuỗi ngẫu nhiên ≥ 256-bit trước khi deploy production. Không commit secret thật lên Git.
-
----
-
-## Roadmap
-
-### Giai đoạn 1 — Hoàn thành ✅
-- [x] Backend ASP.NET Core 10 với JWT Auth
-- [x] EF Core + SQLite (sẵn sàng chuyển SQL Server)
-- [x] Domain models: User, Challenge, Submission
-- [x] API: Auth, Challenges, Submissions
-- [x] Frontend React + Vite + Tailwind CSS v4
-- [x] Trang Landing, Login, Register, Dashboard
-- [x] Zustand state management + Axios interceptor
-
-### Giai đoạn 2 — Kế hoạch
-- [ ] Tích hợp AI feedback (Google Gemini / OpenAI)
-- [ ] Trang admin quản lý thử thách
-- [ ] Bảng xếp hạng (Leaderboard) real-time
-- [ ] Trực quan hóa topology mạng (network graph)
-- [ ] WebSocket thông báo sự kiện live
-- [ ] Chuyển sang SQL Server cho production
-- [ ] Docker Compose cho toàn bộ stack
+### Leaderboard
+- `GET /api/leaderboard` — Lấy danh sách xếp hạng điểm số.
 
 ---
 
 ## Bảo mật
 
-| Cơ chế | Chi tiết |
-|--------|---------|
-| Mật khẩu | BCrypt hash (cost factor 10) |
-| Flag | SHA-256 hash — không lưu plaintext |
-| Token | JWT HS256, hết hạn sau 7 ngày |
-| CORS | Chỉ cho phép `localhost:5173` và `localhost:5174` |
-
----
-
-## License
-
-MIT License — xem file `LICENSE` để biết thêm chi tiết.
-
----
-
-<div align="center">
-  Built with ❤️ for the next generation of network security engineers.
-</div>
+- **Passwords:** Được mã hóa bằng BCrypt (với Work Factor = 10).
+- **Flag Hash:** Flags được băm SHA-256 ngay từ lúc tạo và so khớp một chiều phía server, ngăn ngừa lộ flag ở database.
+- **CORS Policy:** Được giới hạn cứng chỉ chấp nhận nguồn từ client local (`http://localhost:5173` và `5174`).
